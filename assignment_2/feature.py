@@ -16,6 +16,14 @@ import numpy.linalg as linalg
 progress = [x / 100.0 for x in range(0, 100, 5)]
 
 
+def a(b,c):
+    """
+
+    :param b:
+    :param c:
+    :return:
+    """
+
 def gradient(window1, window2, distance):
     """
     Get the gradient between two image windows (patches)
