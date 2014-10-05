@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from itertools import product,combinations
 
 
 def quatmult(p, q):
@@ -25,7 +27,7 @@ def quat(w, deg):
     :return: quaternion
     """
     rad = np.radians(deg)
-    return np.array([np.cos(rad / 2), np.sin(rad/2)*w[0], np.sin(rad/2)*w[1], np.sin(rad/2)*w[2]])
+    return np.array([np.cos(rad / 2.0), np.sin(rad/2.0)*w[0], np.sin(rad/2.0)*w[1], np.sin(rad/2.0)*w[2]])
 
 
 def quat_conj(q):
@@ -101,8 +103,7 @@ def get_orientation(orig, deg):
 
 def draw_3d(pts):
     plt.cla()
-    fig = plt.figure(1)
-    plt.scatter
+    fig = plt.figure(3)
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2])
     fig.canvas.draw()
@@ -112,25 +113,55 @@ def perspective(p, translation, orientation):
     # TODO check the orientation index in u,v calculation: what exactly is camera optical axis
     u0, v0, bu, bv, ku, kv, f = 0, 0, 1, 1, 1, 1, 1
     # p,translation,orientation = p.astype('float32'),translation.astype('float32'),orientation.astype('float32')
-    u = (f * np.dot((p - translation), orientation[0].T) * bu) / np.dot((p - translation), orientation[1].T) + u0
-    v = (f * np.dot((p - translation), orientation[2].T) * bu) / np.dot((p - translation), orientation[1].T) + v0
+    u = (f * np.dot((p - translation), orientation[0].T) * bu) / np.dot((p - translation), orientation[2].T) + u0
+    v = (f * np.dot((p - translation), orientation[1].T) * bu) / np.dot((p - translation), orientation[2].T) + v0
     return u,v
 
 
-def get_sample():
-    sample = np.zeros([11, 3])
-    sample[0, :] = [-1, -1, -1]
-    sample[1, :] = [1, -1, -1]
-    sample[2, :] = [1, 1, -1]
-    sample[3, :] = [-1, 1, -1]
-    sample[4, :] = [-1, -1, 1]
-    sample[5, :] = [1, -1, 1]
-    sample[6, :] = [1, 1, 1]
-    sample[7, :] = [-1, 1, 1]
-    sample[8, :] = [-0.5, -0.5, -1]
-    sample[9, :] = [0.5, -0.5, -1]
-    sample[10, :] = [0, 0.5, -1]
-    return  sample
+def orthographic(p, translation, orientation):
+    u0, v0, bu, bv = 0, 0, 1, 1
+    u = np.dot((p - translation), orientation[0].T) * bu + u0
+    v = np.dot((p - translation), orientation[1].T) * bv + v0
+    return u,v
+
+
+
+def get_sample_2():
+
+    def create_intermediate_points(pt1, pt2, granularity):
+        new_pts = []
+        vector = np.array([(x[0] - x[1]) for x in zip(pt1, pt2)])
+        return [(np.array(pt2) + (vector * (float(i)/granularity))) for i in range(1, granularity)]
+
+    pts = []
+    granularity = 20
+
+    # Create cube wireframe
+    pts.extend([[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], \
+              [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]])
+
+    pts.extend(create_intermediate_points([-1, -1, 1], [1, -1, 1], granularity))
+    pts.extend(create_intermediate_points([1, -1, 1], [1, 1, 1], granularity))
+    pts.extend(create_intermediate_points([1, 1, 1], [-1, 1, 1], granularity))
+    pts.extend(create_intermediate_points([-1, 1, 1], [-1, -1, 1], granularity))
+
+    pts.extend(create_intermediate_points([-1, -1, -1], [1, -1, -1], granularity))
+    pts.extend(create_intermediate_points([1, -1, -1], [1, 1, -1], granularity))
+    pts.extend(create_intermediate_points([1, 1, -1], [-1, 1, -1], granularity))
+    pts.extend(create_intermediate_points([-1, 1, -1], [-1, -1, -1], granularity))
+
+    pts.extend(create_intermediate_points([1, 1, 1], [1, 1, -1], granularity))
+    pts.extend(create_intermediate_points([1, -1, 1], [1, -1, -1], granularity))
+    pts.extend(create_intermediate_points([-1, -1, 1], [-1, -1, -1], granularity))
+    pts.extend(create_intermediate_points([-1, 1, 1], [-1, 1, -1], granularity))
+
+    # Create triangle wireframe
+    pts.extend([[-0.5, -0.5, -1], [0.5, -0.5, -1], [0, 0.5, -1]])
+    pts.extend(create_intermediate_points([-0.5, -0.5, -1], [0.5, -0.5, -1], granularity))
+    pts.extend(create_intermediate_points([0.5, -0.5, -1], [0, 0.5, -1], granularity))
+    pts.extend(create_intermediate_points([0, 0.5, -1], [-0.5, -0.5, -1], granularity))
+
+    return np.array(pts)
 
 
 def draw(pts,frame):
@@ -141,10 +172,20 @@ def draw(pts,frame):
         ax.annotate(i, (x+0.005,y+0.005))
     plt.title('Frame {}'.format(frame))
 
+def draw2(pts,frame):
+    plt.subplot(2,2,frame)
+    for i, (x,y) in enumerate(pts):
+        plt.scatter(x,y)
+    plt.title('Frame {}'.format(frame))
+
+
 def main():
-    pts = get_sample()  # Test data points
+    # pts = get_sample()  # Test data points
+    pts = get_sample_2()
+    # pts = get_cube()
     rot_angle_per_frame = 30
     frames = range(1,5)
+
 
     # Original camera orientation and position
     orientation = np.identity(3)  # Original orientation
@@ -153,18 +194,23 @@ def main():
     for frame in frames:
         print('{}\nFrame {}\n{}'.format('='*50, frame, '='*50))
         perspective_pts = []
+        X = Y = []
 
         if frame > 1:
-            translation = get_translation(translation, rot_angle_per_frame)
+            translation = get_translation(translation, -rot_angle_per_frame)
             # NOTE: rot_angle_per_frame is negated below because we're on camera coord system
             orientation = get_orientation(orientation, rot_angle_per_frame)
 
         for p in pts:
             x, y = perspective(p, translation, orientation)
+            # x, y = orthographic(p, translation,orientation)
             perspective_pts.append((x,y))
+            X.append(x)
+            Y.append(y)
             print('\t{:16} -> ({:6.3f}, {:6.3f})'.format(p, x, y))
 
-        draw(perspective_pts,frame)
+        draw2(perspective_pts,frame)
+
 
 if __name__ == '__main__':
     main()
