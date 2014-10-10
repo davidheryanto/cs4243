@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from itertools import product,combinations
+from itertools import product, combinations
 
 
 def quatmult(p, q):
@@ -27,7 +27,7 @@ def quat(w, deg):
     :return: quaternion
     """
     rad = np.radians(deg)
-    return np.array([np.cos(rad / 2.0), np.sin(rad/2.0)*w[0], np.sin(rad/2.0)*w[1], np.sin(rad/2.0)*w[2]])
+    return np.array([np.cos(rad / 2.0), np.sin(rad / 2.0) * w[0], np.sin(rad / 2.0) * w[1], np.sin(rad / 2.0) * w[2]])
 
 
 def quat_conj(q):
@@ -37,6 +37,7 @@ def quat_conj(q):
     :return:
     """
     return np.array([q[0], -q[1], -q[2], -q[3]])
+
 
 def rotate(p, axis, deg):
     """
@@ -50,7 +51,7 @@ def rotate(p, axis, deg):
         return ValueError('Only rotation wrt to y-axis is implemented')
 
     p = np.insert(p, 0, 0)  # Convert p to quaternion form
-    w = np.array([0,1,0])  # y-axis of rotation
+    w = np.array([0, 1, 0])  # y-axis of rotation
     q = quat(w, deg)
     return quatmult(q, quatmult(p, quat_conj(q)))[1:]
 
@@ -96,9 +97,23 @@ def get_orientation(orig, deg):
         2nd-row -> y-axis dir
         3rd-row -> z-axis dir
     """
-    y_axis = np.array([0,1,0])
+    y_axis = np.array([0, 1, 0])
     q = quat(y_axis, deg)
     return np.dot(quat2rot(q), orig)
+
+
+def perspective(p, translation, orientation):
+    u0, v0, bu, bv, ku, kv, f = 0, 0, 1, 1, 1, 1, 1
+    u = (f * np.dot((p - translation), orientation[0].T) * bu) / np.dot((p - translation), orientation[2].T) + u0
+    v = (f * np.dot((p - translation), orientation[1].T) * bu) / np.dot((p - translation), orientation[2].T) + v0
+    return u, v
+
+
+def orthographic(p, translation, orientation):
+    u0, v0, bu, bv = 0, 0, 1, 1
+    u = np.dot((p - translation), orientation[0].T) * bu + u0
+    v = np.dot((p - translation), orientation[1].T) * bv + v0
+    return u, v
 
 
 def draw_3d(pts):
@@ -109,36 +124,37 @@ def draw_3d(pts):
     fig.canvas.draw()
 
 
-def perspective(p, translation, orientation):
-    # TODO check the orientation index in u,v calculation: what exactly is camera optical axis
-    u0, v0, bu, bv, ku, kv, f = 0, 0, 1, 1, 1, 1, 1
-    # p,translation,orientation = p.astype('float32'),translation.astype('float32'),orientation.astype('float32')
-    u = (f * np.dot((p - translation), orientation[0].T) * bu) / np.dot((p - translation), orientation[2].T) + u0
-    v = (f * np.dot((p - translation), orientation[1].T) * bu) / np.dot((p - translation), orientation[2].T) + v0
-    return u,v
+def draw_with_annotation(pts, frame):
+    plt.subplot(2, 2, frame)
+    ax = plt.gca()
+    for i, (x, y) in enumerate(pts):
+        plt.scatter(x, y)
+        ax.annotate(i, (x + 0.005, y + 0.005))
+    plt.title('Frame {}'.format(frame))
 
 
-def orthographic(p, translation, orientation):
-    u0, v0, bu, bv = 0, 0, 1, 1
-    u = np.dot((p - translation), orientation[0].T) * bu + u0
-    v = np.dot((p - translation), orientation[1].T) * bv + v0
-    return u,v
+def draw(pts, frame,figure):
+    plt.figure(figure)
+    plt.subplot(2, 2, frame)
+    for i, (x, y) in enumerate(pts):
+        plt.scatter(x, y)
+    plt.title('Frame {}'.format(frame))
 
 
-
-def get_sample_2():
-
+def get_sample():
+    # Wireframe by Tay Yang Shun
+    # https://gist.github.com/yangshun/118322b8f2ca5acd7864
     def create_intermediate_points(pt1, pt2, granularity):
         new_pts = []
         vector = np.array([(x[0] - x[1]) for x in zip(pt1, pt2)])
-        return [(np.array(pt2) + (vector * (float(i)/granularity))) for i in range(1, granularity)]
+        return [(np.array(pt2) + (vector * (float(i) / granularity))) for i in range(1, granularity)]
 
     pts = []
     granularity = 20
 
     # Create cube wireframe
     pts.extend([[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], \
-              [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]])
+                [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]])
 
     pts.extend(create_intermediate_points([-1, -1, 1], [1, -1, 1], granularity))
     pts.extend(create_intermediate_points([1, -1, 1], [1, 1, 1], granularity))
@@ -164,52 +180,32 @@ def get_sample_2():
     return np.array(pts)
 
 
-def draw(pts,frame):
-    plt.subplot(2,2,frame)
-    ax = plt.gca()
-    for i, (x,y) in enumerate(pts):
-        plt.scatter(x,y)
-        ax.annotate(i, (x+0.005,y+0.005))
-    plt.title('Frame {}'.format(frame))
-
-def draw2(pts,frame):
-    plt.subplot(2,2,frame)
-    for i, (x,y) in enumerate(pts):
-        plt.scatter(x,y)
-    plt.title('Frame {}'.format(frame))
-
-
 def main():
-    # pts = get_sample()  # Test data points
-    pts = get_sample_2()
-    # pts = get_cube()
+    pts = get_sample()
     rot_angle_per_frame = 30
-    frames = range(1,5)
-
+    frames = range(1, 5)
 
     # Original camera orientation and position
-    orientation = np.identity(3)  # Original orientation
-    translation = np.array([0,0,-5])
+    orientation = np.identity(3)
+    translation = np.array([0, 0, -5])
 
     for frame in frames:
-        print('{}\nFrame {}\n{}'.format('='*50, frame, '='*50))
         perspective_pts = []
-        X = Y = []
+        ortographic_pts = []
 
         if frame > 1:
             translation = get_translation(translation, -rot_angle_per_frame)
-            # NOTE: rot_angle_per_frame is negated below because we're on camera coord system
+            # NOTE: rot_angle_per_frame is positive below because we're rotating the camera
             orientation = get_orientation(orientation, rot_angle_per_frame)
 
         for p in pts:
             x, y = perspective(p, translation, orientation)
-            # x, y = orthographic(p, translation,orientation)
-            perspective_pts.append((x,y))
-            X.append(x)
-            Y.append(y)
-            print('\t{:16} -> ({:6.3f}, {:6.3f})'.format(p, x, y))
+            perspective_pts.append((x, y))
+            x, y = orthographic(p, translation, orientation)
+            ortographic_pts.append((x, y))
 
-        draw2(perspective_pts,frame)
+        draw(perspective_pts, frame, figure=1)
+        draw(ortographic_pts, frame, figure=2)
 
 
 if __name__ == '__main__':
