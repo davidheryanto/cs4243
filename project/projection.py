@@ -103,7 +103,7 @@ def get_orientation(orig, deg):
 
 
 def perspective(p, translation, orientation):
-    u0, v0, bu, bv, ku, kv, f = 0, 0, 1, 1, 1, 1, 1
+    u0, v0, bu, bv, ku, kv, f = 0, 0, 1, 1, 1, 1, 40.5
     u = (f * np.dot((p - translation), orientation[0].T) * bu) / np.dot((p - translation), orientation[2].T) + u0
     v = (f * np.dot((p - translation), orientation[1].T) * bu) / np.dot((p - translation), orientation[2].T) + v0
     return u, v
